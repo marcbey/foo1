@@ -264,7 +264,7 @@ export default function GridStackDemo() {
               if (gridInstance.current) {
                 gridInstance.current.removeAll(false);
               }
-              setWidgets([]);
+              setWidgets(initialWidgets);
               localStorage.removeItem(STORAGE_KEY);
               setIsMenuOpen(false);
               setResetFlash(true);
