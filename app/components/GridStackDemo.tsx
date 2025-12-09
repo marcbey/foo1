@@ -101,7 +101,7 @@ export default function GridStackDemo() {
 
     return () => {
       gridInstance.current?.destroy(false);
-      gridInstance.current = undefined;
+      gridInstance.current = null;
     };
   }, []);
 
