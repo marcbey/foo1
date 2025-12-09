@@ -327,16 +327,22 @@ export default function GridStackDemo() {
           <div
             key={item.id}
             className="grid-stack-item"
-            {...{
-              "gs-id": item.id,
-              "gs-x": item.x,
-              "gs-y": item.y,
-              "gs-w": item.w,
-              "gs-h": item.h,
-              "gs-min-w": item.minW ?? 3,
-              "gs-min-h": item.minH ?? 3,
-              "gs-auto-position": "true",
-            }}
+            {...(() => {
+              const attrs: Record<string, string | number> = {
+                "gs-id": item.id,
+                "gs-x": item.x,
+                "gs-y": item.y,
+                "gs-w": item.w,
+                "gs-h": item.h,
+                "gs-min-w": item.minW ?? 3,
+                "gs-min-h": item.minH ?? 3,
+              };
+              const autoPosition = item.x === undefined || item.y === undefined;
+              if (autoPosition) {
+                attrs["gs-auto-position"] = "true";
+              }
+              return attrs;
+            })()}
             data-widget-id={item.id}
           >
             <div className="grid-stack-item-content flex flex-col rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow">
