@@ -100,7 +100,7 @@ export default function GridStackDemo() {
         minH: 3,
         title: preset?.label ?? `Widget ${prev.length + 1}`,
         body: preset?.summary ?? "New draggable and resizable panel.",
-        chartId,
+        chartId: chartId as ChartId,
       },
     ]);
     setIsMenuOpen(false);
