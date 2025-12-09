@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "gridstack": "^12.3.3",
     "next": "16.0.8",
     "react": "19.2.1",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.1"
   },
   "devDependencies": {

@@ -1,4 +1,5 @@
 import GridStackDemo from "./components/GridStackDemo";
+import ChartsDemo from "./components/ChartsDemo";
 
 const navItems = [
   { label: "Overview", active: true },
@@ -81,6 +82,10 @@ export default function Home() {
         <main className="flex-1 space-y-6">
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <GridStackDemo />
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <ChartsDemo />
           </section>
         </main>
       </div>
