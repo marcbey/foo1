@@ -269,5 +269,5 @@ export function ChartPreview({
 }) {
   const preset = chartPresets.find((p) => p.id === presetId);
   if (!preset) return null;
-  return preset.render(heightClass) as JSX.Element;
+  return preset.render(heightClass) as React.ReactElement;
 }
