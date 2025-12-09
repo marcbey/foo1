@@ -17,63 +17,89 @@ type DemoWidget = {
   chartId?: ChartId;
 };
 
+type SavedWidget = DemoWidget;
+
+const STORAGE_KEY = "dashboard:layout";
+
+const loadSavedWidgets = (): DemoWidget[] | null => {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    const saved = JSON.parse(raw) as SavedWidget[];
+    const seen = new Set<string>();
+    const valid = saved.filter(
+      (w) => w.chartId && chartPresets.some((p) => p.id === w.chartId)
+    ).filter((w) => {
+      const key = w.chartId as string;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!valid.length) return null;
+    return valid.map((w) => ({
+      ...w,
+      id: w.chartId as string,
+      minW: w.minW ?? 3,
+      minH: w.minH ?? 3,
+      w: w.w ?? 3,
+      h: w.h ?? 3,
+      x: w.x ?? 0,
+      y: w.y ?? 0,
+    }));
+  } catch (error) {
+    console.warn("Failed to load saved dashboard layout", error);
+    return null;
+  }
+};
+
 const initialWidgets: DemoWidget[] = [
   {
-    id: "announcements",
+    id: "latency",
     x: 0,
     y: 0,
-    w: 4,
-    h: 4,
-    minW: 4,
-    minH: 4,
+    w: 3,
+    h: 3,
+    minW: 3,
+    minH: 3,
     title: "Latency trend",
     chartId: "latency",
     body: "Latency and P95 over time.",
   },
   {
-    id: "metrics",
-    x: 4,
+    id: "usage",
+    x: 3,
     y: 0,
-    w: 4,
-    h: 4,
-    minW: 4,
-    minH: 4,
+    w: 3,
+    h: 3,
+    minW: 3,
+    minH: 3,
     title: "Usage growth",
     chartId: "usage",
     body: "Active vs new user growth.",
   },
   {
-    id: "timeline",
-    x: 8,
+    id: "region",
+    x: 6,
     y: 0,
-    w: 4,
-    h: 4,
-    minW: 4,
-    minH: 4,
+    w: 3,
+    h: 6,
+    minW: 3,
+    minH: 3,
     title: "Regional mix",
     chartId: "region",
     body: "Traffic split across regions.",
   },
-  {
-    id: "tasks",
-    x: 0,
-    y: 4,
-    w: 4,
-    h: 4,
-    minW: 4,
-    minH: 4,
-    title: "Reliability radar",
-    chartId: "reliability",
-    body: "Reliability signals against targets.",
-  },
 ];
 
 export default function GridStackDemo() {
-  const [widgets, setWidgets] = useState<DemoWidget[]>(initialWidgets);
+  const [widgets, setWidgets] = useState<DemoWidget[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [saveFlash, setSaveFlash] = useState(false);
+  const [resetFlash, setResetFlash] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const gridInstance = useRef<GridStackCore | null>(null);
-  const newId = useRef<number>(0);
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const updateGridHeight = () => {
     if (gridInstance.current && (gridInstance.current as any)._updateContainerHeight) {
@@ -122,19 +148,36 @@ export default function GridStackDemo() {
     updateGridHeight();
   }, [widgets]);
 
+  useEffect(() => {
+    const saved = loadSavedWidgets();
+    setWidgets(saved && saved.length ? saved : initialWidgets);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    };
+  }, []);
+
+  const buildWidgetId = (chartId: ChartId) => chartId;
+
   const addWidget = (chartId: ChartId) => {
+    if (widgets.some((w) => w.chartId === chartId)) {
+      setIsMenuOpen(false);
+      return;
+    }
     const preset = chartPresets.find((p) => p.id === chartId);
-    const id = `widget-${newId.current++}`;
+    const id = buildWidgetId(chartId);
     setWidgets((prev) => [
       ...prev,
       {
         id,
         x: 0,
         y: 0,
-        w: 4,
-        h: 4,
-        minW: 4,
-        minH: 4,
+        w: 3,
+        h: 3,
+        minW: 3,
+        minH: 3,
         title: preset?.label ?? `Widget ${prev.length + 1}`,
         body: preset?.summary ?? "New draggable and resizable panel.",
         chartId,
@@ -169,37 +212,110 @@ export default function GridStackDemo() {
             Powered by gridstack.js, ready for dynamic React-driven dashboards.
           </p>
         </div>
-        <div className="relative">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <button
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-100"
+              type="button"
+              onClick={() => setIsMenuOpen((open) => !open)}
+            >
+              + Add widget
+              <span className="text-slate-500">▾</span>
+            </button>
+            {isMenuOpen ? (
+              <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+                {chartPresets.map((preset) => {
+                  const isUsed = widgets.some((w) => w.chartId === preset.id);
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition ${
+                        isUsed
+                          ? "cursor-not-allowed bg-slate-50 text-slate-400"
+                          : "text-slate-800 hover:bg-slate-100"
+                      }`}
+                      onClick={() => !isUsed && addWidget(preset.id)}
+                      disabled={isUsed}
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold uppercase text-slate-600">
+                        {preset.label.slice(0, 2)}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {preset.label}
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          {isUsed ? "Already on dashboard" : preset.summary}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
           <button
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-100"
             type="button"
-            onClick={() => setIsMenuOpen((open) => !open)}
+            className={`rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 ${
+              resetFlash ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-white" : ""
+            }`}
+            onClick={() => {
+              if (gridInstance.current) {
+                gridInstance.current.removeAll(false);
+              }
+              setWidgets([]);
+              localStorage.removeItem(STORAGE_KEY);
+              setIsMenuOpen(false);
+              setResetFlash(true);
+              if (saveTimeout.current) clearTimeout(saveTimeout.current);
+              saveTimeout.current = setTimeout(() => setResetFlash(false), 1000);
+            }}
           >
-            + Add widget
-            <span className="text-slate-500">▾</span>
+            Reset Dashboard
           </button>
-          {isMenuOpen ? (
-            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-              {chartPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-100"
-                  onClick={() => addWidget(preset.id)}
-                >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold uppercase text-slate-600">
-                    {preset.label.slice(0, 2)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900">
-                      {preset.label}
-                    </p>
-                    <p className="text-xs text-slate-600">{preset.summary}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <button
+            type="button"
+            className={`rounded-lg border border-slate-200 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 ${
+              saveFlash ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-white" : ""
+            }`}
+          onClick={() => {
+            const grid = gridInstance.current;
+            if (!grid) return;
+            const layout = grid.save(false) || [];
+            const seen = new Set<string>();
+            const serialized: SavedWidget[] = layout
+              .map((node: any) => {
+                const widget = widgets.find((w) => w.id === node.id);
+                const chartId = widget?.chartId ?? (node.id as ChartId | undefined);
+                if (!chartId) return null;
+                if (seen.has(chartId)) return null;
+                seen.add(chartId);
+                return {
+                  id: node.id,
+                  chartId,
+                  title: widget?.title ?? node.id,
+                  body: widget?.body,
+                    x: node.x ?? 0,
+                    y: node.y ?? 0,
+                  w: node.w ?? 3,
+                  h: node.h ?? 3,
+                  minW: node.minW ?? widget?.minW ?? 3,
+                  minH: node.minH ?? widget?.minH ?? 3,
+                } as SavedWidget;
+              })
+                .filter(Boolean) as SavedWidget[];
+
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
+              console.log("Dashboard layout saved", serialized);
+
+              setSaveFlash(true);
+              if (saveTimeout.current) clearTimeout(saveTimeout.current);
+              saveTimeout.current = setTimeout(() => setSaveFlash(false), 1000);
+            }}
+          >
+            Save Dashboard
+          </button>
         </div>
       </div>
 
@@ -217,8 +333,8 @@ export default function GridStackDemo() {
               "gs-y": item.y,
               "gs-w": item.w,
               "gs-h": item.h,
-              "gs-min-w": item.minW ?? 4,
-              "gs-min-h": item.minH ?? 4,
+              "gs-min-w": item.minW ?? 3,
+              "gs-min-h": item.minH ?? 3,
               "gs-auto-position": "true",
             }}
             data-widget-id={item.id}
@@ -244,10 +360,6 @@ export default function GridStackDemo() {
                   <ChartPreview presetId={item.chartId} heightClass="h-full" />
                 </div>
               ) : null}
-              <div className="mt-auto flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                <span className="h-2 w-2 rounded-full bg-indigo-500" />
-                Live widget
-              </div>
             </div>
           </div>
         ))}
