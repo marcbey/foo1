@@ -93,7 +93,9 @@ const initialWidgets: DemoWidget[] = [
 ];
 
 export default function GridStackDemo() {
-  const [widgets, setWidgets] = useState<DemoWidget[]>([]);
+  const [widgets, setWidgets] = useState<DemoWidget[]>(
+    () => loadSavedWidgets() ?? initialWidgets
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [resetFlash, setResetFlash] = useState(false);
@@ -102,9 +104,10 @@ export default function GridStackDemo() {
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const updateGridHeight = () => {
-    if (gridInstance.current && (gridInstance.current as any)._updateContainerHeight) {
-      (gridInstance.current as any)._updateContainerHeight();
-    }
+    const instance = gridInstance.current as
+      | (GridStackCore & { _updateContainerHeight?: () => void })
+      | null;
+    instance?._updateContainerHeight?.();
   };
 
   useEffect(() => {
@@ -140,18 +143,14 @@ export default function GridStackDemo() {
 
     gridInstance.current.batchUpdate();
     elements.forEach((el) => {
-      if (!(el as any).gridstackNode) {
-        gridInstance.current?.makeWidget(el);
+      const widgetEl = el as HTMLElement & { gridstackNode?: unknown };
+      if (!widgetEl.gridstackNode) {
+        gridInstance.current?.makeWidget(widgetEl);
       }
     });
     gridInstance.current.commit();
     updateGridHeight();
   }, [widgets]);
-
-  useEffect(() => {
-    const saved = loadSavedWidgets();
-    setWidgets(saved && saved.length ? saved : initialWidgets);
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -279,32 +278,32 @@ export default function GridStackDemo() {
             className={`rounded-lg border border-slate-200 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 ${
               saveFlash ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-white" : ""
             }`}
-          onClick={() => {
-            const grid = gridInstance.current;
-            if (!grid) return;
+            onClick={() => {
+              const grid = gridInstance.current;
+              if (!grid) return;
               const layout = grid.save(false);
               const nodes: GridStackWidget[] = Array.isArray(layout) ? layout : [];
               const seen = new Set<string>();
               const serialized: SavedWidget[] = nodes
-                .map((node: any) => {
+                .map((node) => {
                   const widget = widgets.find((w) => w.id === node.id);
-                const chartId = widget?.chartId ?? (node.id as ChartId | undefined);
-                if (!chartId) return null;
-                if (seen.has(chartId)) return null;
-                seen.add(chartId);
-                return {
-                  id: node.id,
-                  chartId,
-                  title: widget?.title ?? node.id,
-                  body: widget?.body,
+                  const chartId = widget?.chartId ?? (node.id as ChartId | undefined);
+                  if (!chartId) return null;
+                  if (seen.has(chartId)) return null;
+                  seen.add(chartId);
+                  return {
+                    id: node.id as string,
+                    chartId,
+                    title: widget?.title ?? (node.id as string),
+                    body: widget?.body,
                     x: node.x ?? 0,
                     y: node.y ?? 0,
-                  w: node.w ?? 3,
-                  h: node.h ?? 3,
-                  minW: node.minW ?? widget?.minW ?? 3,
-                  minH: node.minH ?? widget?.minH ?? 3,
-                } as SavedWidget;
-              })
+                    w: node.w ?? 3,
+                    h: node.h ?? 3,
+                    minW: node.minW ?? widget?.minW ?? 3,
+                    minH: node.minH ?? widget?.minH ?? 3,
+                  } as SavedWidget;
+                })
                 .filter(Boolean) as SavedWidget[];
 
               localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
