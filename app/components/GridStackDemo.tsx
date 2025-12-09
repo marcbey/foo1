@@ -72,7 +72,7 @@ export default function GridStackDemo() {
   const [widgets, setWidgets] = useState<DemoWidget[]>(initialWidgets);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
-  const gridInstance = useRef<GridStackCore>();
+  const gridInstance = useRef<GridStackCore | null>(null);
   const newId = useRef<number>(0);
 
   const updateGridHeight = () => {
