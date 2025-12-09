@@ -58,21 +58,29 @@ export default function GridStackDemo() {
   const gridInstance = useRef<GridStackCore>();
   const newId = useRef<number>(0);
 
+  const updateGridHeight = () => {
+    if (gridInstance.current && (gridInstance.current as any)._updateContainerHeight) {
+      (gridInstance.current as any)._updateContainerHeight();
+    }
+  };
+
   useEffect(() => {
     if (!gridRef.current || gridInstance.current) return;
 
     const grid = GridStackCore.init(
       {
         float: true,
-        cellHeight: 130,
-        margin: 8,
+        cellHeight: "auto",
+        margin: 12,
         resizable: { handles: "all" },
         draggable: { handle: ".grid-stack-item-content" },
       },
       gridRef.current
     );
 
+    grid.margin(12);
     gridInstance.current = grid;
+    updateGridHeight();
 
     return () => {
       gridInstance.current?.destroy(false);
@@ -94,6 +102,7 @@ export default function GridStackDemo() {
       }
     });
     gridInstance.current.commit();
+    updateGridHeight();
   }, [widgets]);
 
   const addWidget = () => {
@@ -121,6 +130,7 @@ export default function GridStackDemo() {
       gridInstance.current.removeWidget(el, false, false);
     }
     setWidgets((prev) => prev.filter((item) => item.id !== id));
+    updateGridHeight();
   };
 
   return (
@@ -172,7 +182,7 @@ export default function GridStackDemo() {
             }}
             data-widget-id={item.id}
           >
-            <div className="grid-stack-item-content flex h-full flex-col rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow">
+            <div className="grid-stack-item-content flex flex-col rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-900">
                   {item.title}
