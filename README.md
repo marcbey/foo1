@@ -34,3 +34,17 @@ npm run dev
 - `npm run build` – production build
 - `npm start` – run the production build
 - `npm run lint` – lint with Next.js defaults
+
+## Deploy to GitHub Pages
+This repo is configured for GitHub Pages at `https://marcbey.github.io/foo1`.
+
+1) Ensure the repo has GitHub Pages enabled with **Source: GitHub Actions** (Settings → Pages).  
+2) Push to `main`; the workflow `.github/workflows/deploy.yml` builds a static export (`output: "export"`) with `GITHUB_PAGES=true` so `basePath`/`assetPrefix` point to `/foo1`, uploads `out/`, and deploys to Pages.  
+3) If testing locally with the Pages base path, run:  
+```bash
+GITHUB_PAGES=true npm run dev
+```  
+or build locally:  
+```bash
+GITHUB_PAGES=true npm run build && npx serve out
+```
