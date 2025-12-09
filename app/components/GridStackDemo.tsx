@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { GridStack as GridStackCore } from "gridstack";
+import { GridStack as GridStackCore, type GridStackWidget } from "gridstack";
 import { ChartId, ChartPreview, chartPresets } from "./chartRegistry";
 
 type DemoWidget = {
@@ -282,11 +282,12 @@ export default function GridStackDemo() {
           onClick={() => {
             const grid = gridInstance.current;
             if (!grid) return;
-            const layout = grid.save(false) || [];
-            const seen = new Set<string>();
-            const serialized: SavedWidget[] = layout
-              .map((node: any) => {
-                const widget = widgets.find((w) => w.id === node.id);
+              const layout = grid.save(false);
+              const nodes: GridStackWidget[] = Array.isArray(layout) ? layout : [];
+              const seen = new Set<string>();
+              const serialized: SavedWidget[] = nodes
+                .map((node: any) => {
+                  const widget = widgets.find((w) => w.id === node.id);
                 const chartId = widget?.chartId ?? (node.id as ChartId | undefined);
                 if (!chartId) return null;
                 if (seen.has(chartId)) return null;
