@@ -2,103 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GridStack as GridStackCore, type GridStackWidget } from "gridstack";
-import { ChartId, ChartPreview, chartPresets } from "./chartRegistry";
-
-type DemoWidget = {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  minW?: number;
-  minH?: number;
-  title: string;
-  body?: string;
-  chartId?: ChartId;
-};
-
-type SavedWidget = DemoWidget;
-
-const STORAGE_KEY = "dashboard:layout";
-
-const loadSavedWidgets = (): DemoWidget[] | null => {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return null;
-  try {
-    const saved = JSON.parse(raw) as SavedWidget[];
-    const seen = new Set<string>();
-    const valid = saved.filter(
-      (w) => w.chartId && chartPresets.some((p) => p.id === w.chartId)
-    ).filter((w) => {
-      const key = w.chartId as string;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-    if (!valid.length) return null;
-    return valid.map((w) => ({
-      ...w,
-      id: w.chartId as string,
-      minW: w.minW ?? 3,
-      minH: w.minH ?? 3,
-      w: w.w ?? 3,
-      h: w.h ?? 3,
-      x: w.x ?? 0,
-      y: w.y ?? 0,
-    }));
-  } catch (error) {
-    console.warn("Failed to load saved dashboard layout", error);
-    return null;
-  }
-};
-
-const initialWidgets: DemoWidget[] = [
-  {
-    id: "latency",
-    x: 0,
-    y: 0,
-    w: 3,
-    h: 3,
-    minW: 3,
-    minH: 3,
-    title: "Latency trend",
-    chartId: "latency",
-    body: "Latency and P95 over time.",
-  },
-  {
-    id: "usage",
-    x: 3,
-    y: 0,
-    w: 3,
-    h: 3,
-    minW: 3,
-    minH: 3,
-    title: "Usage growth",
-    chartId: "usage",
-    body: "Active vs new user growth.",
-  },
-  {
-    id: "region",
-    x: 6,
-    y: 0,
-    w: 3,
-    h: 6,
-    minW: 3,
-    minH: 3,
-    title: "Regional mix",
-    chartId: "region",
-    body: "Traffic split across regions.",
-  },
-];
+import { ChartPreview, chartPresets, type ChartId } from "./chartRegistry";
+import DashboardControls from "./DashboardControls";
+import {
+  STORAGE_KEY,
+  initialWidgets,
+  loadSavedWidgets,
+  serializeLayout,
+  type WidgetConfig,
+} from "../lib/dashboard";
 
 export default function GridStackDemo() {
-  const [widgets, setWidgets] = useState<DemoWidget[]>(
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(
     () => loadSavedWidgets() ?? initialWidgets
   );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [resetFlash, setResetFlash] = useState(false);
+  const [detailChartId, setDetailChartId] = useState<ChartId | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const gridInstance = useRef<GridStackCore | null>(null);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -158,9 +79,9 @@ export default function GridStackDemo() {
     };
   }, []);
 
-  const buildWidgetId = (chartId: ChartId) => chartId;
+  const buildWidgetId = (chartId: string) => chartId;
 
-  const addWidget = (chartId: ChartId) => {
+  const addWidget = (chartId: string) => {
     if (widgets.some((w) => w.chartId === chartId)) {
       setIsMenuOpen(false);
       return;
@@ -190,7 +111,6 @@ export default function GridStackDemo() {
       `[data-widget-id="${id}"]`
     );
     if (el && gridInstance.current) {
-      // Let React handle DOM removal; only detach from Gridstack.
       gridInstance.current.removeWidget(el, false, false);
     }
     setWidgets((prev) => prev.filter((item) => item.id !== id));
@@ -199,128 +119,63 @@ export default function GridStackDemo() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Interactive dashboard
-          </p>
-          <h2 className="text-xl font-semibold text-slate-900">
-            Drag, drop, and resize widgets
-          </h2>
-          <p className="mt-1 text-slate-600">
-            Powered by gridstack.js, ready for dynamic React-driven dashboards.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <button
-              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-100"
-              type="button"
-              onClick={() => setIsMenuOpen((open) => !open)}
-            >
-              + Add widget
-              <span className="text-slate-500">▾</span>
-            </button>
-            {isMenuOpen ? (
-              <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
-                {chartPresets.map((preset) => {
-                  const isUsed = widgets.some((w) => w.chartId === preset.id);
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition ${
-                        isUsed
-                          ? "cursor-not-allowed bg-slate-50 text-slate-400"
-                          : "text-slate-800 hover:bg-slate-100"
-                      }`}
-                      onClick={() => !isUsed && addWidget(preset.id)}
-                      disabled={isUsed}
-                    >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold uppercase text-slate-600">
-                        {preset.label.slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900">
-                          {preset.label}
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          {isUsed ? "Already on dashboard" : preset.summary}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
+      <DashboardControls
+        widgetsInUse={widgets.map((w) => w.chartId).filter(Boolean) as ChartId[]}
+        isMenuOpen={isMenuOpen}
+        onToggleMenu={() => setIsMenuOpen((open) => !open)}
+        onAddWidget={addWidget}
+        onReset={() => {
+          if (gridInstance.current) {
+            gridInstance.current.removeAll(false);
+          }
+          setWidgets(initialWidgets);
+          localStorage.removeItem(STORAGE_KEY);
+          setIsMenuOpen(false);
+          setDetailChartId(null);
+          setResetFlash(true);
+          if (saveTimeout.current) clearTimeout(saveTimeout.current);
+          saveTimeout.current = setTimeout(() => setResetFlash(false), 1000);
+        }}
+        onSave={() => {
+          const grid = gridInstance.current;
+          if (!grid) return;
+          const layout = grid.save(false);
+          const nodes: GridStackWidget[] = Array.isArray(layout) ? layout : [];
+          const serialized = serializeLayout(nodes, widgets);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
+          setSaveFlash(true);
+          if (saveTimeout.current) clearTimeout(saveTimeout.current);
+          saveTimeout.current = setTimeout(() => setSaveFlash(false), 1000);
+        }}
+        saveFlash={saveFlash}
+        resetFlash={resetFlash}
+        selectedChartId={detailChartId}
+        onExitDetail={() => setDetailChartId(null)}
+      />
+
+      {detailChartId ? (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Chart detail
+              </p>
+              <h3 className="text-xl font-semibold text-slate-900">
+                {chartPresets.find((p) => p.id === detailChartId)?.label ??
+                  "Selected chart"}
+              </h3>
+            </div>
           </div>
-          <button
-            type="button"
-            className={`rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 ${
-              resetFlash ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-white" : ""
-            }`}
-            onClick={() => {
-              if (gridInstance.current) {
-                gridInstance.current.removeAll(false);
-              }
-              setWidgets(initialWidgets);
-              localStorage.removeItem(STORAGE_KEY);
-              setIsMenuOpen(false);
-              setResetFlash(true);
-              if (saveTimeout.current) clearTimeout(saveTimeout.current);
-              saveTimeout.current = setTimeout(() => setResetFlash(false), 1000);
-            }}
-          >
-            Reset Dashboard
-          </button>
-          <button
-            type="button"
-            className={`rounded-lg border border-slate-200 bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 ${
-              saveFlash ? "ring-2 ring-emerald-400 ring-offset-2 ring-offset-white" : ""
-            }`}
-            onClick={() => {
-              const grid = gridInstance.current;
-              if (!grid) return;
-              const layout = grid.save(false);
-              const nodes: GridStackWidget[] = Array.isArray(layout) ? layout : [];
-              const seen = new Set<string>();
-              const serialized: SavedWidget[] = nodes
-                .map((node) => {
-                  const widget = widgets.find((w) => w.id === node.id);
-                  const chartId = widget?.chartId ?? (node.id as ChartId | undefined);
-                  if (!chartId) return null;
-                  if (seen.has(chartId)) return null;
-                  seen.add(chartId);
-                  return {
-                    id: node.id as string,
-                    chartId,
-                    title: widget?.title ?? (node.id as string),
-                    body: widget?.body,
-                    x: node.x ?? 0,
-                    y: node.y ?? 0,
-                    w: node.w ?? 3,
-                    h: node.h ?? 3,
-                    minW: node.minW ?? widget?.minW ?? 3,
-                    minH: node.minH ?? widget?.minH ?? 3,
-                  } as SavedWidget;
-                })
-                .filter(Boolean) as SavedWidget[];
-
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
-              console.log("Dashboard layout saved", serialized);
-
-              setSaveFlash(true);
-              if (saveTimeout.current) clearTimeout(saveTimeout.current);
-              saveTimeout.current = setTimeout(() => setSaveFlash(false), 1000);
-            }}
-          >
-            Save Dashboard
-          </button>
+          <div className="mt-4 h-[520px] rounded-lg border border-slate-100 bg-slate-50 p-4">
+            <ChartPreview presetId={detailChartId} heightClass="h-full" />
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div
-        className="grid-stack rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className={`grid-stack rounded-xl border border-slate-200 bg-white p-4 shadow-sm ${
+          detailChartId ? "hidden" : ""
+        }`}
         ref={gridRef}
       >
         {widgets.map((item) => (
@@ -345,26 +200,31 @@ export default function GridStackDemo() {
             })()}
             data-widget-id={item.id}
           >
-            <div className="grid-stack-item-content flex flex-col rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow">
-              <div className="flex items-start justify-between gap-2">
+            <div className="group relative grid-stack-item-content flex flex-col rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm transition hover:shadow">
+              <div className="flex items-start justify-between gap-2 pr-6">
                 <p className="text-sm font-semibold text-slate-900">
                   {item.title}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => removeWidget(item.id)}
-                  className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-800"
-                >
-                  x
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={() => removeWidget(item.id)}
+                aria-label="Remove widget"
+                className="absolute right-2 top-2 hidden h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-semibold text-slate-500 shadow-sm transition hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800 group-hover:flex"
+              >
+                ✕
+              </button>
               {item.body ? (
                 <p className="mt-1 text-sm text-slate-600">{item.body}</p>
               ) : null}
               {item.chartId ? (
-                <div className="mt-3 h-56">
+                <button
+                  type="button"
+                  onClick={() => setDetailChartId(item.chartId as ChartId)}
+                  className="mt-3 h-56 rounded-md border border-slate-200 bg-white/60 p-1 transition hover:border-slate-300"
+                >
                   <ChartPreview presetId={item.chartId} heightClass="h-full" />
-                </div>
+                </button>
               ) : null}
             </div>
           </div>
