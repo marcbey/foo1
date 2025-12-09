@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GridStack as GridStackCore } from "gridstack";
+import { ChartId, ChartPreview, chartPresets } from "./chartRegistry";
 
 type DemoWidget = {
   id: string;
@@ -12,7 +13,8 @@ type DemoWidget = {
   minW?: number;
   minH?: number;
   title: string;
-  body: string;
+  body?: string;
+  chartId?: ChartId;
 };
 
 const initialWidgets: DemoWidget[] = [
@@ -24,8 +26,9 @@ const initialWidgets: DemoWidget[] = [
     h: 4,
     minW: 4,
     minH: 4,
-    title: "Announcements",
-    body: "Team sync today at 2:00 PM. Add notes from last sprint review.",
+    title: "Latency trend",
+    chartId: "latency",
+    body: "Latency and P95 over time.",
   },
   {
     id: "metrics",
@@ -35,8 +38,9 @@ const initialWidgets: DemoWidget[] = [
     h: 4,
     minW: 4,
     minH: 4,
-    title: "Metrics",
-    body: "Weekly active users up 8%. Keep an eye on latency spikes in EU.",
+    title: "Usage growth",
+    chartId: "usage",
+    body: "Active vs new user growth.",
   },
   {
     id: "timeline",
@@ -46,8 +50,9 @@ const initialWidgets: DemoWidget[] = [
     h: 4,
     minW: 4,
     minH: 4,
-    title: "Timeline",
-    body: "Release candidate build is scheduled for Friday. QA signoff pending.",
+    title: "Regional mix",
+    chartId: "region",
+    body: "Traffic split across regions.",
   },
   {
     id: "tasks",
@@ -57,13 +62,15 @@ const initialWidgets: DemoWidget[] = [
     h: 4,
     minW: 4,
     minH: 4,
-    title: "Tasks",
-    body: "Track ownership and unblockers for the dashboard release train.",
+    title: "Reliability radar",
+    chartId: "reliability",
+    body: "Reliability signals against targets.",
   },
 ];
 
 export default function GridStackDemo() {
   const [widgets, setWidgets] = useState<DemoWidget[]>(initialWidgets);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const gridInstance = useRef<GridStackCore>();
   const newId = useRef<number>(0);
@@ -115,7 +122,8 @@ export default function GridStackDemo() {
     updateGridHeight();
   }, [widgets]);
 
-  const addWidget = () => {
+  const addWidget = (chartId: ChartId) => {
+    const preset = chartPresets.find((p) => p.id === chartId);
     const id = `widget-${newId.current++}`;
     setWidgets((prev) => [
       ...prev,
@@ -127,10 +135,12 @@ export default function GridStackDemo() {
         h: 4,
         minW: 4,
         minH: 4,
-        title: `Widget ${prev.length + 1}`,
-        body: "New draggable and resizable panel.",
+        title: preset?.label ?? `Widget ${prev.length + 1}`,
+        body: preset?.summary ?? "New draggable and resizable panel.",
+        chartId,
       },
     ]);
+    setIsMenuOpen(false);
   };
 
   const removeWidget = (id: string) => {
@@ -159,14 +169,37 @@ export default function GridStackDemo() {
             Powered by gridstack.js, ready for dynamic React-driven dashboards.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+        <div className="relative">
           <button
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-slate-800 transition hover:border-slate-300 hover:bg-slate-100"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-100"
             type="button"
-            onClick={addWidget}
+            onClick={() => setIsMenuOpen((open) => !open)}
           >
             + Add widget
+            <span className="text-slate-500">▾</span>
           </button>
+          {isMenuOpen ? (
+            <div className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
+              {chartPresets.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="flex w-full items-start gap-2 px-3 py-2 text-left text-sm text-slate-800 transition hover:bg-slate-100"
+                  onClick={() => addWidget(preset.id)}
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-xs font-semibold uppercase text-slate-600">
+                    {preset.label.slice(0, 2)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900">
+                      {preset.label}
+                    </p>
+                    <p className="text-xs text-slate-600">{preset.summary}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -184,8 +217,8 @@ export default function GridStackDemo() {
               "gs-y": item.y,
               "gs-w": item.w,
               "gs-h": item.h,
-              "gs-min-w": item.minW ?? 5,
-              "gs-min-h": item.minH ?? 5,
+              "gs-min-w": item.minW ?? 4,
+              "gs-min-h": item.minH ?? 4,
               "gs-auto-position": "true",
             }}
             data-widget-id={item.id}
@@ -203,7 +236,14 @@ export default function GridStackDemo() {
                   x
                 </button>
               </div>
-              <p className="mt-1 text-sm text-slate-600">{item.body}</p>
+              {item.body ? (
+                <p className="mt-1 text-sm text-slate-600">{item.body}</p>
+              ) : null}
+              {item.chartId ? (
+                <div className="mt-3 h-56">
+                  <ChartPreview presetId={item.chartId} heightClass="h-full" />
+                </div>
+              ) : null}
               <div className="mt-auto flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
                 <span className="h-2 w-2 rounded-full bg-indigo-500" />
                 Live widget
