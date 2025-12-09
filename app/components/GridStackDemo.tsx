@@ -9,6 +9,8 @@ type DemoWidget = {
   y: number;
   w: number;
   h: number;
+  minW?: number;
+  minH?: number;
   title: string;
   body: string;
 };
@@ -19,7 +21,9 @@ const initialWidgets: DemoWidget[] = [
     x: 0,
     y: 0,
     w: 4,
-    h: 2,
+    h: 4,
+    minW: 4,
+    minH: 4,
     title: "Announcements",
     body: "Team sync today at 2:00 PM. Add notes from last sprint review.",
   },
@@ -28,7 +32,9 @@ const initialWidgets: DemoWidget[] = [
     x: 4,
     y: 0,
     w: 4,
-    h: 2,
+    h: 4,
+    minW: 4,
+    minH: 4,
     title: "Metrics",
     body: "Weekly active users up 8%. Keep an eye on latency spikes in EU.",
   },
@@ -37,16 +43,20 @@ const initialWidgets: DemoWidget[] = [
     x: 8,
     y: 0,
     w: 4,
-    h: 2,
+    h: 4,
+    minW: 4,
+    minH: 4,
     title: "Timeline",
     body: "Release candidate build is scheduled for Friday. QA signoff pending.",
   },
   {
     id: "tasks",
     x: 0,
-    y: 2,
-    w: 6,
-    h: 2,
+    y: 4,
+    w: 4,
+    h: 4,
+    minW: 4,
+    minH: 4,
     title: "Tasks",
     body: "Track ownership and unblockers for the dashboard release train.",
   },
@@ -72,7 +82,7 @@ export default function GridStackDemo() {
         float: true,
         cellHeight: "auto",
         margin: 12,
-        resizable: { handles: "all" },
+        resizable: { handles: "se" },
         draggable: { handle: ".grid-stack-item-content" },
       },
       gridRef.current
@@ -114,7 +124,9 @@ export default function GridStackDemo() {
         x: 0,
         y: 0,
         w: 4,
-        h: 2,
+        h: 4,
+        minW: 4,
+        minH: 4,
         title: `Widget ${prev.length + 1}`,
         body: "New draggable and resizable panel.",
       },
@@ -155,12 +167,6 @@ export default function GridStackDemo() {
           >
             + Add widget
           </button>
-          <span className="hidden h-9 items-center rounded-full border border-slate-200 px-3 sm:inline-flex">
-            Drag to move
-          </span>
-          <span className="hidden h-9 items-center rounded-full border border-slate-200 px-3 sm:inline-flex">
-            Resize from corners
-          </span>
         </div>
       </div>
 
@@ -178,6 +184,8 @@ export default function GridStackDemo() {
               "gs-y": item.y,
               "gs-w": item.w,
               "gs-h": item.h,
+              "gs-min-w": item.minW ?? 5,
+              "gs-min-h": item.minH ?? 5,
               "gs-auto-position": "true",
             }}
             data-widget-id={item.id}
@@ -192,7 +200,7 @@ export default function GridStackDemo() {
                   onClick={() => removeWidget(item.id)}
                   className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 hover:text-slate-800"
                 >
-                  Remove
+                  x
                 </button>
               </div>
               <p className="mt-1 text-sm text-slate-600">{item.body}</p>
