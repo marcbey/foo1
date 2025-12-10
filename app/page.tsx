@@ -21,7 +21,7 @@ export default function Home() {
                 Workspace
               </p>
               <p className="text-base font-semibold text-slate-900">
-                Product Dashboard
+                Product Dashboard!!!!!
               </p>
             </div>
           </div>
